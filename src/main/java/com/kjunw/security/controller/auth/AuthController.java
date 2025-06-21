@@ -3,8 +3,9 @@ package com.kjunw.security.controller.auth;
 import com.kjunw.security.controller.auth.request.LoginRequest;
 import com.kjunw.security.controller.auth.request.SignupRequest;
 import com.kjunw.security.controller.auth.respons.LoginResponse;
-import com.kjunw.security.dto.LoginResult;
+import com.kjunw.security.controller.auth.respons.ReissueMultiToken;
 import com.kjunw.security.dto.MemberCreationContent;
+import com.kjunw.security.dto.MultiToken;
 import com.kjunw.security.service.AuthService;
 import com.kjunw.security.utility.CookieUtility;
 import jakarta.validation.Valid;
@@ -36,12 +37,12 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
-        LoginResult loginResult = authService.login(loginRequest.email(), loginRequest.password());
-        ResponseCookie cookie = cookieUtility.makeCookie("refreshToken", loginResult.refreshToken());
+        MultiToken multiToken = authService.login(loginRequest.email(), loginRequest.password());
+        ResponseCookie cookie = cookieUtility.makeCookie("refreshToken", multiToken.refreshToken());
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(new LoginResponse(loginResult.accessToken()));
+                .body(new LoginResponse(multiToken.accessToken()));
     }
 
     @PostMapping("/logout")
@@ -55,10 +56,12 @@ public class AuthController {
     }
 
     @PostMapping("/auth/reissue")
-    public ResponseEntity<LoginResponse> reissueAccessToken(@CookieValue("refreshToken") String refreshToken) {
-        String accessToken = authService.reissueAccessToken(refreshToken);
+    public ResponseEntity<ReissueMultiToken> reissueMultiToken(@CookieValue("refreshToken") String refreshToken) {
+        MultiToken multiToken = authService.reissueAccessToken(refreshToken);
+        ResponseCookie cookie = cookieUtility.makeCookie("refreshToken", multiToken.refreshToken());
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(new LoginResponse(accessToken));
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(new ReissueMultiToken(multiToken.accessToken()));
     }
 }

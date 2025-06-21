@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestCookieException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
@@ -54,6 +55,16 @@ public class GlobalExceptionAdvice {
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         problemDetail.setTitle("올바르지 않은 입력입니다.");
         problemDetail.setDetail("요청 메세지의 형식을 다시 확인해주세요.");
+        return ResponseEntity.badRequest().body(problemDetail);
+    }
+
+    @ExceptionHandler(MissingRequestCookieException.class)
+    public ResponseEntity<ProblemDetail> missingRequestCookieExceptionHandler(
+            MissingRequestCookieException exception
+    ) {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problemDetail.setTitle("올바르지 않은 입력입니다.");
+        problemDetail.setDetail(exception.getMessage());
         return ResponseEntity.badRequest().body(problemDetail);
     }
 

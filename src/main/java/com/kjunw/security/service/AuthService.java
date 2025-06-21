@@ -3,8 +3,8 @@ package com.kjunw.security.service;
 import com.kjunw.security.domain.Member;
 import com.kjunw.security.domain.Role;
 import com.kjunw.security.dto.AccessTokenContent;
-import com.kjunw.security.dto.LoginResult;
 import com.kjunw.security.dto.MemberCreationContent;
+import com.kjunw.security.dto.MultiToken;
 import com.kjunw.security.dto.RefreshTokenContent;
 import com.kjunw.security.exception.BadRequestException;
 import com.kjunw.security.exception.LoginFailException;
@@ -39,7 +39,7 @@ public class AuthService {
     }
 
     @Transactional
-    public LoginResult login(String email, String password) {
+    public MultiToken login(String email, String password) {
         Member member = getMemberByEmail(email);
         validateEqualPassword(member, password);
 
@@ -49,7 +49,7 @@ public class AuthService {
                 new RefreshTokenContent(member.getId()));
 
         member.replaceRefreshToken(refreshToken);
-        return new LoginResult(accessToken, refreshToken);
+        return new MultiToken(accessToken, refreshToken);
     }
 
     @Transactional
@@ -59,13 +59,19 @@ public class AuthService {
         member.deleteRefreshToken();
     }
 
-    @Transactional(readOnly = true)
-    public String reissueAccessToken(String refreshToken) {
+    @Transactional
+    public MultiToken reissueAccessToken(String refreshToken) {
         RefreshTokenContent refreshTokenContent = jwtProvider.parseRefreshContent(refreshToken);
         Member member = getMemberById(refreshTokenContent.id());
         validateEqualRefreshToken(member, refreshToken);
-        return jwtProvider.createAccessToken(
+
+        String accessToken = jwtProvider.createAccessToken(
                 new AccessTokenContent(member.getId(), member.getRole(), member.getName()));
+        String newRefreshToken = jwtProvider.createRefreshToken(
+                new RefreshTokenContent(member.getId()));
+
+        member.replaceRefreshToken(newRefreshToken);
+        return new MultiToken(accessToken, newRefreshToken);
     }
 
     private Member getMemberById(long id) {

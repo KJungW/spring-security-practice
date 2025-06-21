@@ -193,10 +193,10 @@ class AuthApiTest {
     }
 
     @Nested
-    @DisplayName("엑세스 토큰을 재발급 받을 수 있다.")
+    @DisplayName("토큰을 재발급 받을 수 있다.")
     public class ReissueAccessToken {
 
-        @DisplayName("정상적으로 엑세스 토큰을 재발급 받을 수 있다.")
+        @DisplayName("정상적으로 토큰을 재발급 받을 수 있다.")
         @Test
         void canReissueAccessToken() {
             // given
@@ -217,6 +217,7 @@ class AuthApiTest {
                     .post("/auth/reissue")
                     .then().log().all()
                     .statusCode(HttpStatus.OK.value())
+                    .cookie("refreshToken", notNullValue())
                     .body("accessToken", notNullValue());
         }
 
@@ -268,7 +269,7 @@ class AuthApiTest {
                     .statusCode(HttpStatus.UNAUTHORIZED.value());
         }
 
-        @DisplayName("서버에 저장된 리프레쉬 토큰과 일치하지 않는다면 재발급이 불가능하다.")
+        @DisplayName("입력된 리프레시 토큰이 서버의 리프레쉬 토큰과 일치하지 않는다면 재발급이 불가능하다.")
         @Test
         void cannotByInvalidRefreshToken() {
             // given
