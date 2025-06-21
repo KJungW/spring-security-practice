@@ -25,3 +25,4 @@ security:
     token:
       secret-key: emN2cGdvcHdsZXcyNjIzNDEwYWthQCEjYXNkL3ZjeGtsa2x2eGNremxqMjAxNHNpZGchQFRTRE9TREFGS0x3cWxrZWprYWZhcw==
       access-expire-length: 600000
+      refresh-expire-length: 86400000

@@ -5,8 +5,10 @@ import com.kjunw.security.domain.Role;
 import com.kjunw.security.dto.AccessTokenContent;
 import com.kjunw.security.dto.LoginResult;
 import com.kjunw.security.dto.MemberCreationContent;
+import com.kjunw.security.dto.RefreshTokenContent;
 import com.kjunw.security.exception.BadRequestException;
 import com.kjunw.security.exception.LoginFailException;
+import com.kjunw.security.exception.NotFoundException;
 import com.kjunw.security.repository.MemberRepository;
 import com.kjunw.security.utility.JwtProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -42,12 +44,27 @@ public class AuthService {
 
         String accessToken = jwtProvider.createAccessToken(
                 new AccessTokenContent(member.getId(), member.getRole(), member.getName()));
-        return new LoginResult(accessToken);
+        String refreshToken = jwtProvider.createRefreshToken(
+                new RefreshTokenContent(member.getId()));
+        return new LoginResult(accessToken, refreshToken);
+    }
+
+    @Transactional(readOnly = true)
+    public String reissueAccessToken(String refreshToken) {
+        RefreshTokenContent refreshTokenContent = jwtProvider.parseRefreshContent(refreshToken);
+        Member member = getMemberById(refreshTokenContent.id());
+        return jwtProvider.createAccessToken(
+                new AccessTokenContent(member.getId(), member.getRole(), member.getName()));
+    }
+
+    private Member getMemberById(long id) {
+        return memberRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("id에 해당하는 회원이 존재하지 않습니다."));
     }
 
     private Member getMemberByEmail(String email) {
         return memberRepository.findByEmail(email)
-                .orElseThrow(() -> new LoginFailException("로그인에 실패했습니다."));
+                .orElseThrow(() -> new LoginFailException("email에 해당하는 회원이 존재하지 않습니다."));
     }
 
     private void validateDuplicatedEmail(String email) {
@@ -60,7 +77,7 @@ public class AuthService {
     private void validateEqualPassword(Member member, String password) {
         boolean isEqual = passwordEncoder.matches(password, member.getPassword());
         if (!isEqual) {
-            throw new LoginFailException("로그인에 실패했습니다.");
+            throw new LoginFailException("비밀번호가 맞지 않습니다.");
         }
     }
 }

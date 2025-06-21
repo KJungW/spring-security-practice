@@ -4,6 +4,7 @@ import static org.hamcrest.Matchers.notNullValue;
 
 import com.kjunw.security.domain.Member;
 import com.kjunw.security.domain.Role;
+import com.kjunw.security.dto.RefreshTokenContent;
 import com.kjunw.security.repository.MemberRepository;
 import com.kjunw.security.utility.JwtProvider;
 import io.restassured.RestAssured;
@@ -114,6 +115,7 @@ class AuthApiTest {
                     .post("/login")
                     .then().log().all()
                     .statusCode(HttpStatus.OK.value())
+                    .cookie("refreshToken", notNullValue())
                     .body("accessToken", notNullValue());
         }
 
@@ -159,6 +161,92 @@ class AuthApiTest {
                     .post("/login")
                     .then().log().all()
                     .statusCode(HttpStatus.BAD_REQUEST.value());
+        }
+    }
+
+    @Nested
+    @DisplayName("엑세스 토큰을 재발급 받을 수 있다.")
+    public class ReissueAccessToken {
+
+        @DisplayName("정상적으로 엑세스 토큰을 재발급 받을 수 있다.")
+        @Test
+        void canReissueAccessToken() {
+            // given
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
+            memberRepository.save(member);
+
+            String refreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
+
+            Map<String, Object> params = new HashMap<>();
+            params.put("email", "member@test.com");
+            params.put("password", "qwer1234!");
+
+            // when & then
+            RestAssured
+                    .given().log().all()
+                    .contentType(ContentType.JSON)
+                    .port(port)
+                    .cookie("refreshToken", refreshToken)
+                    .body(params)
+                    .when()
+                    .post("/auth/reissue")
+                    .then().log().all()
+                    .statusCode(HttpStatus.OK.value())
+                    .body("accessToken", notNullValue());
+        }
+
+        @DisplayName("만료된 리프레쉬 토큰으로는 재발급이 불가능하다.")
+        @Test
+        void cannotByExpiredRefreshToken() {
+            // given
+            Member member = memberRepository.save(
+                    new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!")));
+
+            jwtProvider = new JwtProvider("qwekljksldcvmxzlewjrjqw[dsiv[afdaf'ewrw'resdf", 600000, 0);
+            String expiredRefreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
+
+            Map<String, Object> params = new HashMap<>();
+            params.put("email", "member@test.com");
+            params.put("password", "qwer1234!");
+
+            // when & then
+            RestAssured
+                    .given().log().all()
+                    .contentType(ContentType.JSON)
+                    .port(port)
+                    .cookie("refreshToken", expiredRefreshToken)
+                    .body(params)
+                    .when()
+                    .post("/auth/reissue")
+                    .then().log().all()
+                    .statusCode(HttpStatus.UNAUTHORIZED.value());
+        }
+
+        @DisplayName("만료된 리프레쉬 토큰으로는 재발급이 불가능하다.")
+        @Test
+        void cannotByDamagedRefreshToken() {
+            // given
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
+            memberRepository.save(member);
+
+            String damagedRefreshToken =
+                    jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId())) + "damaged";
+
+            Map<String, Object> params = new HashMap<>();
+            params.put("email", "member@test.com");
+            params.put("password", "qwer1234!");
+
+            // when & then
+            RestAssured
+                    .given().log().all()
+                    .contentType(ContentType.JSON)
+                    .port(port)
+                    .cookie("refreshToken", damagedRefreshToken)
+                    .body(params)
+                    .when()
+                    .post("/auth/reissue")
+                    .then().log().all()
+                    .statusCode(HttpStatus.UNAUTHORIZED.value());
         }
     }
 }

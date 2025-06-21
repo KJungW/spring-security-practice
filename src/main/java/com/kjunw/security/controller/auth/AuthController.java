@@ -6,9 +6,13 @@ import com.kjunw.security.controller.auth.respons.LoginResponse;
 import com.kjunw.security.dto.LoginResult;
 import com.kjunw.security.dto.MemberCreationContent;
 import com.kjunw.security.service.AuthService;
+import com.kjunw.security.utility.CookieUtility;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,9 +21,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final CookieUtility cookieUtility;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, CookieUtility cookieUtility) {
         this.authService = authService;
+        this.cookieUtility = cookieUtility;
     }
 
     @PostMapping("/signup")
@@ -29,8 +35,20 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public LoginResponse login(@Valid @RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
         LoginResult loginResult = authService.login(loginRequest.email(), loginRequest.password());
-        return new LoginResponse(loginResult.accessToken());
+        ResponseCookie cookie = cookieUtility.makeTokenCookie("refreshToken", loginResult.refreshToken());
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .body(new LoginResponse(loginResult.accessToken()));
+    }
+
+    @PostMapping("/auth/reissue")
+    public ResponseEntity<LoginResponse> reissueAccessToken(@CookieValue("refreshToken") String refreshToken) {
+        String accessToken = authService.reissueAccessToken(refreshToken);
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(new LoginResponse(accessToken));
     }
 }
