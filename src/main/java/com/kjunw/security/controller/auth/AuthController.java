@@ -37,11 +37,21 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
         LoginResult loginResult = authService.login(loginRequest.email(), loginRequest.password());
-        ResponseCookie cookie = cookieUtility.makeTokenCookie("refreshToken", loginResult.refreshToken());
+        ResponseCookie cookie = cookieUtility.makeCookie("refreshToken", loginResult.refreshToken());
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(new LoginResponse(loginResult.accessToken()));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@CookieValue("refreshToken") String refreshToken) {
+        authService.logout(refreshToken);
+        ResponseCookie cookie = cookieUtility.makeExpiredCookie("refreshToken");
+        return ResponseEntity
+                .status(HttpStatus.NO_CONTENT)
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .build();
     }
 
     @PostMapping("/auth/reissue")

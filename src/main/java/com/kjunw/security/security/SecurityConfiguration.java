@@ -41,9 +41,10 @@ public class SecurityConfiguration {
         http.sessionManagement(sessionManagement
                 -> sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
-        // BasicHttp, FormLogin 비활성화
+        // BasicHttp, FormLogin, 기본 로그아웃 비활성화
         http.httpBasic(AbstractHttpConfigurer::disable);
         http.formLogin(AbstractHttpConfigurer::disable);
+        http.logout(AbstractHttpConfigurer::disable);
 
         // JWT 인증 필터 추가
 

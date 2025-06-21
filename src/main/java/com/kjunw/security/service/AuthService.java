@@ -9,6 +9,7 @@ import com.kjunw.security.dto.RefreshTokenContent;
 import com.kjunw.security.exception.BadRequestException;
 import com.kjunw.security.exception.LoginFailException;
 import com.kjunw.security.exception.NotFoundException;
+import com.kjunw.security.exception.UnauthorizedException;
 import com.kjunw.security.repository.MemberRepository;
 import com.kjunw.security.utility.JwtProvider;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,7 +38,7 @@ public class AuthService {
         memberRepository.save(member);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResult login(String email, String password) {
         Member member = getMemberByEmail(email);
         validateEqualPassword(member, password);
@@ -46,13 +47,23 @@ public class AuthService {
                 new AccessTokenContent(member.getId(), member.getRole(), member.getName()));
         String refreshToken = jwtProvider.createRefreshToken(
                 new RefreshTokenContent(member.getId()));
+
+        member.replaceRefreshToken(refreshToken);
         return new LoginResult(accessToken, refreshToken);
+    }
+
+    @Transactional
+    public void logout(String refreshToken) {
+        RefreshTokenContent refreshTokenContent = jwtProvider.parseRefreshContent(refreshToken);
+        Member member = getMemberById(refreshTokenContent.id());
+        member.deleteRefreshToken();
     }
 
     @Transactional(readOnly = true)
     public String reissueAccessToken(String refreshToken) {
         RefreshTokenContent refreshTokenContent = jwtProvider.parseRefreshContent(refreshToken);
         Member member = getMemberById(refreshTokenContent.id());
+        validateEqualRefreshToken(member, refreshToken);
         return jwtProvider.createAccessToken(
                 new AccessTokenContent(member.getId(), member.getRole(), member.getName()));
     }
@@ -78,6 +89,13 @@ public class AuthService {
         boolean isEqual = passwordEncoder.matches(password, member.getPassword());
         if (!isEqual) {
             throw new LoginFailException("비밀번호가 맞지 않습니다.");
+        }
+    }
+
+    private void validateEqualRefreshToken(Member member, String refreshToken) {
+        boolean isEqual = member.compareRefreshToken(refreshToken);
+        if (!isEqual) {
+            throw new UnauthorizedException("유효하지 않은 인증입니다. 다시 로그인해주세요.");
         }
     }
 }

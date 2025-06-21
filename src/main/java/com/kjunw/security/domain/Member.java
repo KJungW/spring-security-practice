@@ -24,6 +24,7 @@ public class Member {
     private String email;
     @Column(nullable = false)
     private String password;
+    private String refreshToken;
 
     protected Member() {
     }
@@ -33,6 +34,7 @@ public class Member {
         this.name = name;
         this.email = email;
         this.password = password;
+        this.refreshToken = "";
     }
 
     public Long getId() {
@@ -53,5 +55,17 @@ public class Member {
 
     public String getPassword() {
         return password;
+    }
+
+    public void replaceRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
+    }
+
+    public void deleteRefreshToken() {
+        this.refreshToken = "";
+    }
+
+    public boolean compareRefreshToken(String refreshToken) {
+        return this.refreshToken.equals(refreshToken);
     }
 }

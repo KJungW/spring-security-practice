@@ -70,7 +70,7 @@ class AuthApiTest {
         void cannotByDuplicateEmail() {
             // given
             Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("asdf1234!"));
-            memberRepository.save(member);
+            member = memberRepository.save(member);
 
             Map<String, Object> params = new HashMap<>();
             params.put("name", "Kim");
@@ -99,7 +99,7 @@ class AuthApiTest {
         void canLogin() {
             // given
             Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
-            memberRepository.save(member);
+            member = memberRepository.save(member);
 
             Map<String, Object> params = new HashMap<>();
             params.put("email", "member@test.com");
@@ -145,7 +145,7 @@ class AuthApiTest {
         void cannotByIncorrectPassword() {
             // given
             Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
-            memberRepository.save(member);
+            member = memberRepository.save(member);
 
             Map<String, Object> params = new HashMap<>();
             params.put("email", "member@test.com");
@@ -165,6 +165,34 @@ class AuthApiTest {
     }
 
     @Nested
+    @DisplayName("로그아웃 할 수 있다.")
+    public class Logout {
+
+        @DisplayName("정상적으로 로그아웃할 수 있다.")
+        @Test
+        void canLogout() {
+            // given
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
+            member = memberRepository.save(member);
+
+            String refreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
+            member.replaceRefreshToken(refreshToken);
+            member = memberRepository.save(member);
+
+            // when & then
+            RestAssured
+                    .given().log().all()
+                    .contentType(ContentType.JSON)
+                    .port(port)
+                    .cookie("refreshToken", refreshToken)
+                    .when()
+                    .post("/logout")
+                    .then().log().all()
+                    .statusCode(HttpStatus.NO_CONTENT.value());
+        }
+    }
+
+    @Nested
     @DisplayName("엑세스 토큰을 재발급 받을 수 있다.")
     public class ReissueAccessToken {
 
@@ -173,13 +201,11 @@ class AuthApiTest {
         void canReissueAccessToken() {
             // given
             Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
-            memberRepository.save(member);
+            member = memberRepository.save(member);
 
             String refreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
-
-            Map<String, Object> params = new HashMap<>();
-            params.put("email", "member@test.com");
-            params.put("password", "qwer1234!");
+            member.replaceRefreshToken(refreshToken);
+            member = memberRepository.save(member);
 
             // when & then
             RestAssured
@@ -187,7 +213,6 @@ class AuthApiTest {
                     .contentType(ContentType.JSON)
                     .port(port)
                     .cookie("refreshToken", refreshToken)
-                    .body(params)
                     .when()
                     .post("/auth/reissue")
                     .then().log().all()
@@ -199,15 +224,13 @@ class AuthApiTest {
         @Test
         void cannotByExpiredRefreshToken() {
             // given
-            Member member = memberRepository.save(
-                    new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!")));
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
+            member = memberRepository.save(member);
 
             jwtProvider = new JwtProvider("qwekljksldcvmxzlewjrjqw[dsiv[afdaf'ewrw'resdf", 600000, 0);
             String expiredRefreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
-
-            Map<String, Object> params = new HashMap<>();
-            params.put("email", "member@test.com");
-            params.put("password", "qwer1234!");
+            member.replaceRefreshToken(expiredRefreshToken);
+            member = memberRepository.save(member);
 
             // when & then
             RestAssured
@@ -215,26 +238,23 @@ class AuthApiTest {
                     .contentType(ContentType.JSON)
                     .port(port)
                     .cookie("refreshToken", expiredRefreshToken)
-                    .body(params)
                     .when()
                     .post("/auth/reissue")
                     .then().log().all()
                     .statusCode(HttpStatus.UNAUTHORIZED.value());
         }
 
-        @DisplayName("만료된 리프레쉬 토큰으로는 재발급이 불가능하다.")
+        @DisplayName("훼손된 리프레쉬 토큰으로는 재발급이 불가능하다.")
         @Test
         void cannotByDamagedRefreshToken() {
             // given
             Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
-            memberRepository.save(member);
+            member = memberRepository.save(member);
 
             String damagedRefreshToken =
                     jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId())) + "damaged";
-
-            Map<String, Object> params = new HashMap<>();
-            params.put("email", "member@test.com");
-            params.put("password", "qwer1234!");
+            member.replaceRefreshToken(damagedRefreshToken);
+            member = memberRepository.save(member);
 
             // when & then
             RestAssured
@@ -242,7 +262,33 @@ class AuthApiTest {
                     .contentType(ContentType.JSON)
                     .port(port)
                     .cookie("refreshToken", damagedRefreshToken)
-                    .body(params)
+                    .when()
+                    .post("/auth/reissue")
+                    .then().log().all()
+                    .statusCode(HttpStatus.UNAUTHORIZED.value());
+        }
+
+        @DisplayName("서버에 저장된 리프레쉬 토큰과 일치하지 않는다면 재발급이 불가능하다.")
+        @Test
+        void cannotByInvalidRefreshToken() {
+            // given
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
+            member = memberRepository.save(member);
+
+            jwtProvider = new JwtProvider("qwekljksldcvmxzlewjrjqw[dsiv[afdaf'ewrw'resdf", 600000, 600000);
+            String firstRefreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
+            member.replaceRefreshToken(firstRefreshToken);
+            member = memberRepository.save(member);
+
+            jwtProvider = new JwtProvider("qwekljksldcvmxzlewjrjqw[dsiv[afdaf'ewrw'resdf", 600000, 500000);
+            String secondRefreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
+
+            // when & then
+            RestAssured
+                    .given().log().all()
+                    .contentType(ContentType.JSON)
+                    .port(port)
+                    .cookie("refreshToken", secondRefreshToken)
                     .when()
                     .post("/auth/reissue")
                     .then().log().all()
