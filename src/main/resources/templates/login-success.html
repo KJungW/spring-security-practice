@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>로그인 성공</title>
+</head>
+<body>
+<h1>로그인 성공!</h1>
+<p id="token">Access Token을 가져오는 중...</p>
+
+<script>
+  // /auth/reissue 호출 (refreshToken 쿠키를 기반으로 accessToken 재발급)
+  fetch("/auth/reissue", {
+    method: "POST", // 보통 POST로 accessToken 재발급
+    credentials: "include", // 쿠키 자동 포함 필수!
+    headers: {
+      "Content-Type": "application/json"
+    }
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error("엑세스 토큰 재발급 실패");
+    }
+    return response.json();
+  })
+  .then(data => {
+    // accessToken 출력
+    document.getElementById("token").textContent = "Access Token: " + data.accessToken;
+  })
+  .catch(error => {
+    document.getElementById("token").textContent = "토큰을 불러올 수 없습니다: " + error.message;
+  });
+</script>
+</body>
+</html>

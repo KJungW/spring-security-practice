@@ -1,4 +1,4 @@
-package com.kjunw.security.security;
+package com.kjunw.security.security.jwt;
 
 import com.kjunw.security.domain.Member;
 import com.kjunw.security.domain.Role;
@@ -12,12 +12,10 @@ public class CustomUserDetails implements UserDetails {
 
     private final long id;
     private final Role role;
-    private final String password;
 
     public CustomUserDetails(Member member) {
         this.id = member.getId();
         this.role = member.getRole();
-        this.password = member.getPassword();
     }
 
     @Override
@@ -37,7 +35,7 @@ public class CustomUserDetails implements UserDetails {
      */
     @Override
     public String getPassword() {
-        return password;
+        return "";
     }
 
     /*

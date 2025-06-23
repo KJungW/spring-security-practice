@@ -1,17 +1,21 @@
-package com.kjunw.security.service;
+package com.kjunw.security.service.auth;
 
+import com.kjunw.security.domain.Account;
+import com.kjunw.security.domain.LoginType;
 import com.kjunw.security.domain.Member;
 import com.kjunw.security.domain.Role;
 import com.kjunw.security.dto.AccessTokenContent;
 import com.kjunw.security.dto.MemberCreationContent;
 import com.kjunw.security.dto.MultiToken;
 import com.kjunw.security.dto.RefreshTokenContent;
+import com.kjunw.security.dto.SocialLoginResult;
 import com.kjunw.security.exception.BadRequestException;
 import com.kjunw.security.exception.LoginFailException;
 import com.kjunw.security.exception.NotFoundException;
 import com.kjunw.security.exception.UnauthorizedException;
 import com.kjunw.security.repository.MemberRepository;
 import com.kjunw.security.utility.JwtProvider;
+import java.util.Optional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,18 +34,41 @@ public class AuthService {
     }
 
     @Transactional
-    public void signup(MemberCreationContent content) {
+    public Member signup(MemberCreationContent content) {
         String encodedPassword = passwordEncoder.encode(content.password());
-        Member member = new Member(Role.GENERAL, content.name(), content.email(), encodedPassword);
+        Account account = Account.makeCommonLoginAccount(encodedPassword);
+        Member member = new Member(Role.GENERAL, content.name(), content.email(), account);
 
         validateDuplicatedEmail(member.getEmail());
-        memberRepository.save(member);
+        return memberRepository.save(member);
+    }
+
+    @Transactional
+    public Member signupBySocial(SocialLoginResult socialAuthResult) {
+        Account account = Account.makeSocalLoginAccount(socialAuthResult.loginType(), socialAuthResult.socialId());
+        Member newMember = new Member(
+                Role.GENERAL, socialAuthResult.nickname(), socialAuthResult.email(), account);
+        validateDuplicatedEmail(newMember.getEmail());
+        return memberRepository.save(newMember);
     }
 
     @Transactional
     public MultiToken login(String email, String password) {
         Member member = getMemberByEmail(email);
         validateEqualPassword(member, password);
+
+        String accessToken = jwtProvider.createAccessToken(
+                new AccessTokenContent(member.getId(), member.getRole(), member.getName()));
+        String refreshToken = jwtProvider.createRefreshToken(
+                new RefreshTokenContent(member.getId()));
+
+        member.replaceRefreshToken(refreshToken);
+        return new MultiToken(accessToken, refreshToken);
+    }
+
+    @Transactional
+    public MultiToken loginBySocialAccount(long memberId) {
+        Member member = getMemberById(memberId);
 
         String accessToken = jwtProvider.createAccessToken(
                 new AccessTokenContent(member.getId(), member.getRole(), member.getName()));
@@ -74,6 +101,11 @@ public class AuthService {
         return new MultiToken(accessToken, newRefreshToken);
     }
 
+    @Transactional(readOnly = true)
+    public Optional<Member> findMemberBySocialId(LoginType loginType, String socialId) {
+        return memberRepository.findBySocialId(loginType, socialId);
+    }
+
     private Member getMemberById(long id) {
         return memberRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("id에 해당하는 회원이 존재하지 않습니다."));
@@ -92,7 +124,7 @@ public class AuthService {
     }
 
     private void validateEqualPassword(Member member, String password) {
-        boolean isEqual = passwordEncoder.matches(password, member.getPassword());
+        boolean isEqual = passwordEncoder.matches(password, member.getAccount().getPassword());
         if (!isEqual) {
             throw new LoginFailException("비밀번호가 맞지 않습니다.");
         }

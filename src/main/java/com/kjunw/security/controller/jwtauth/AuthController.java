@@ -1,12 +1,12 @@
-package com.kjunw.security.controller.auth;
+package com.kjunw.security.controller.jwtauth;
 
-import com.kjunw.security.controller.auth.request.LoginRequest;
-import com.kjunw.security.controller.auth.request.SignupRequest;
-import com.kjunw.security.controller.auth.respons.LoginResponse;
-import com.kjunw.security.controller.auth.respons.ReissueMultiToken;
+import com.kjunw.security.controller.jwtauth.request.LoginRequest;
+import com.kjunw.security.controller.jwtauth.request.SignupRequest;
+import com.kjunw.security.controller.jwtauth.respons.LoginResponse;
+import com.kjunw.security.controller.jwtauth.respons.ReissueMultiToken;
 import com.kjunw.security.dto.MemberCreationContent;
 import com.kjunw.security.dto.MultiToken;
-import com.kjunw.security.service.AuthService;
+import com.kjunw.security.service.auth.AuthService;
 import com.kjunw.security.utility.CookieUtility;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;

@@ -1,4 +1,4 @@
-package com.kjunw.security.controller.auth.request;
+package com.kjunw.security.controller.jwtauth.request;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

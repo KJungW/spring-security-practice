@@ -1,4 +1,4 @@
-package com.kjunw.security.controller.check;
+package com.kjunw.security.controller.rolecheck;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -1,7 +1,8 @@
-package com.kjunw.security.controller.auth;
+package com.kjunw.security.controller.jwtauth;
 
 import static org.hamcrest.Matchers.notNullValue;
 
+import com.kjunw.security.domain.Account;
 import com.kjunw.security.domain.Member;
 import com.kjunw.security.domain.Role;
 import com.kjunw.security.dto.RefreshTokenContent;
@@ -69,7 +70,8 @@ class AuthApiTest {
         @Test
         void cannotByDuplicateEmail() {
             // given
-            Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("asdf1234!"));
+            Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("asdf1234!"));
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
             member = memberRepository.save(member);
 
             Map<String, Object> params = new HashMap<>();
@@ -98,7 +100,8 @@ class AuthApiTest {
         @Test
         void canLogin() {
             // given
-            Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
+            Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
             member = memberRepository.save(member);
 
             Map<String, Object> params = new HashMap<>();
@@ -144,7 +147,8 @@ class AuthApiTest {
         @Test
         void cannotByIncorrectPassword() {
             // given
-            Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
+            Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
             member = memberRepository.save(member);
 
             Map<String, Object> params = new HashMap<>();
@@ -172,7 +176,8 @@ class AuthApiTest {
         @Test
         void canLogout() {
             // given
-            Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
+            Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
             member = memberRepository.save(member);
 
             String refreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
@@ -200,7 +205,8 @@ class AuthApiTest {
         @Test
         void canReissueAccessToken() {
             // given
-            Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
+            Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
             member = memberRepository.save(member);
 
             String refreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
@@ -225,7 +231,8 @@ class AuthApiTest {
         @Test
         void cannotByExpiredRefreshToken() {
             // given
-            Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
+            Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
             member = memberRepository.save(member);
 
             jwtProvider = new JwtProvider("qwekljksldcvmxzlewjrjqw[dsiv[afdaf'ewrw'resdf", 600000, 0);
@@ -249,7 +256,8 @@ class AuthApiTest {
         @Test
         void cannotByDamagedRefreshToken() {
             // given
-            Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
+            Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
             member = memberRepository.save(member);
 
             String damagedRefreshToken =
@@ -273,7 +281,8 @@ class AuthApiTest {
         @Test
         void cannotByInvalidRefreshToken() {
             // given
-            Member member = new Member(Role.GENERAL, "Park", "member@test.com", passwordEncoder.encode("qwer1234!"));
+            Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
             member = memberRepository.save(member);
 
             jwtProvider = new JwtProvider("qwekljksldcvmxzlewjrjqw[dsiv[afdaf'ewrw'resdf", 600000, 600000);

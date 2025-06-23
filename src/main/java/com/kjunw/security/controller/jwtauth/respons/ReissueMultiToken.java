@@ -1,4 +1,4 @@
-package com.kjunw.security.controller.auth.respons;
+package com.kjunw.security.controller.jwtauth.respons;
 
 public record ReissueMultiToken(
         String accessToken

@@ -1,9 +1,9 @@
-package com.kjunw.security.security;
+package com.kjunw.security.security.jwt;
 
 import com.kjunw.security.dto.AccessTokenContent;
 import com.kjunw.security.exception.JwtFilterAuthException;
 import com.kjunw.security.exception.UnauthorizedException;
-import com.kjunw.security.service.CustomUserDetailService;
+import com.kjunw.security.service.auth.CustomUserDetailService;
 import com.kjunw.security.utility.JwtProvider;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
