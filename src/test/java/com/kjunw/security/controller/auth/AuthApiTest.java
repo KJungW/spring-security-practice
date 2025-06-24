@@ -138,7 +138,7 @@ class AuthApiTest {
                     .when()
                     .post("/login")
                     .then().log().all()
-                    .statusCode(HttpStatus.BAD_REQUEST.value());
+                    .statusCode(HttpStatus.UNAUTHORIZED.value());
 
         }
 
@@ -163,7 +163,7 @@ class AuthApiTest {
                     .when()
                     .post("/login")
                     .then().log().all()
-                    .statusCode(HttpStatus.BAD_REQUEST.value());
+                    .statusCode(HttpStatus.UNAUTHORIZED.value());
         }
     }
 
