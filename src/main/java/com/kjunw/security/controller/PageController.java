@@ -1,14 +1,14 @@
-package com.kjunw.security.controller.socialauth;
+package com.kjunw.security.controller;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
-public class SocialAuthController {
+public class PageController {
 
-    @GetMapping("/social-login")
+    @GetMapping("/login")
     public String getSocialLoginPage() {
-        return "social-login";
+        return "login";
     }
 
     @GetMapping("/login/success")

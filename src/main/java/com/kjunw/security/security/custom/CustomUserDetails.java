@@ -1,4 +1,4 @@
-package com.kjunw.security.security.jwt;
+package com.kjunw.security.security.custom;
 
 import com.kjunw.security.domain.Member;
 import com.kjunw.security.domain.Role;

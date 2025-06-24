@@ -1,11 +1,12 @@
-package com.kjunw.security.service.oauth2;
+package com.kjunw.security.security.custom;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kjunw.security.domain.LoginType;
 import com.kjunw.security.domain.Member;
 import com.kjunw.security.dto.SocialLoginResult;
-import com.kjunw.security.service.auth.AuthService;
+import com.kjunw.security.dto.SocialMemberCreationContent;
+import com.kjunw.security.service.SignupService;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,11 +24,14 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
-    private final AuthService authService;
+    private final SignupService signupService;
     private final ObjectMapper objectMapper;
 
-    public CustomOAuth2UserService(AuthService authService, ObjectMapper objectMapper) {
-        this.authService = authService;
+    public CustomOAuth2UserService(
+            SignupService signupService,
+            ObjectMapper objectMapper
+    ) {
+        this.signupService = signupService;
         this.objectMapper = objectMapper;
     }
 
@@ -42,7 +46,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
         // socialId에 해당하는 회원을 DB에서 조회
         Optional<Member> memberOptional =
-                authService.findMemberBySocialId(socialLoginResult.loginType(), socialLoginResult.socialId());
+                signupService.findMemberBySocialId(socialLoginResult.loginType(), socialLoginResult.socialId());
 
         // 회원이 존재하지 않는다면 첫번째 로그인으로 간주하고 회원 등록 수행
         Member member = memberOptional.orElseGet(() -> saveMemberWhenFirstLogin(socialLoginResult));
@@ -73,19 +77,25 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
     private SocialLoginResult parseMemberResource(LoginType loginType, OAuth2User oAuth2User) {
         try {
+            // 네이버 응답 파싱
             if (loginType == LoginType.NAVER) {
                 JsonNode node = objectMapper.convertValue(oAuth2User.getAttributes(), JsonNode.class);
                 String socialId = node.path("response").path("id").asText();
                 String nickname = node.path("response").path("name").asText();
                 String email = node.path("response").path("email").asText();
                 return new SocialLoginResult(loginType, socialId, nickname, email);
-            } else if (loginType == LoginType.KAKAO) {
+            }
+            // 카카오 응답 파싱
+            // 카카오의 경우 이메일 정보를 받아오기 위해서는 심사필요 -> 임시 이메일로 대체
+            else if (loginType == LoginType.KAKAO) {
                 JsonNode node = objectMapper.convertValue(oAuth2User.getAttributes(), JsonNode.class);
                 String socialId = node.path("id").asText();
                 String nickname = node.path("kakao_account").path("profile").path("nickname").asText();
-                String email = socialId + "@kakao.com"; // 카카오의 경우 이메일 정보를 받아오기 위해서는 심사필요, 임시 이메일로 대체
+                String email = socialId + "@kakao.com";
                 return new SocialLoginResult(loginType, socialId, nickname, email);
-            } else if (loginType == LoginType.GOOGLE) {
+            }
+            // 구글 응답 파싱
+            else if (loginType == LoginType.GOOGLE) {
                 JsonNode node = objectMapper.convertValue(oAuth2User.getAttributes(), JsonNode.class);
                 String socialId = node.path("sub").asText();
                 String nickname = node.path("name").asText();
@@ -100,7 +110,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
     private Member saveMemberWhenFirstLogin(SocialLoginResult loginResult) {
         try {
-            return authService.signupBySocial(loginResult);
+            SocialMemberCreationContent memberCreationContent = new SocialMemberCreationContent(loginResult);
+            return signupService.signup(memberCreationContent);
         } catch (Exception exception) {
             throw new OAuth2AuthenticationException("회원을 새롭게 등록할 수 없습니다.");
         }

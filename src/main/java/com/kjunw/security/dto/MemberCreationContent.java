@@ -1,6 +1,6 @@
 package com.kjunw.security.dto;
 
-import com.kjunw.security.controller.jwtauth.request.SignupRequest;
+import com.kjunw.security.controller.request.SignupRequest;
 
 public record MemberCreationContent(
         String name,

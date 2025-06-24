@@ -1,7 +1,7 @@
-package com.kjunw.security.security.oauth2;
+package com.kjunw.security.security.filter;
 
 import com.kjunw.security.dto.MultiToken;
-import com.kjunw.security.service.auth.AuthService;
+import com.kjunw.security.service.AuthService;
 import com.kjunw.security.utility.CookieUtility;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -9,17 +9,16 @@ import java.io.IOException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
 @Component
-public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
+public class AuthSuccessHandler implements AuthenticationSuccessHandler {
 
     private final AuthService authService;
     private final CookieUtility cookieUtility;
 
-    public OAuth2SuccessHandler(
+    public AuthSuccessHandler(
             AuthService authService,
             CookieUtility cookieUtility
     ) {
@@ -34,10 +33,10 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             Authentication authentication
     ) throws IOException {
         // 인증에 성공한 유저 정보 가져오기
-        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
+        Long memberId = Long.parseLong(authentication.getName());
 
         // 내부적인 로그인을 수행해서 인증 토큰 생성
-        MultiToken multiToken = authService.loginBySocialAccount(Long.parseLong(oAuth2User.getName()));
+        MultiToken multiToken = authService.issueRefreshToken(memberId);
 
         // 응답에 담을 본문 내용과 쿠키 생성
         ResponseCookie tokenCookie = cookieUtility.makeCookie("refreshToken", multiToken.refreshToken());

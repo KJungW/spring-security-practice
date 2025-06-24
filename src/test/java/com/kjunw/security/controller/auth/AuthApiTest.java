@@ -1,4 +1,4 @@
-package com.kjunw.security.controller.jwtauth;
+package com.kjunw.security.controller.auth;
 
 import static org.hamcrest.Matchers.notNullValue;
 
@@ -117,9 +117,8 @@ class AuthApiTest {
                     .when()
                     .post("/login")
                     .then().log().all()
-                    .statusCode(HttpStatus.OK.value())
-                    .cookie("refreshToken", notNullValue())
-                    .body("accessToken", notNullValue());
+                    .statusCode(HttpStatus.FOUND.value())
+                    .cookie("refreshToken", notNullValue());
         }
 
         @DisplayName("계정이 존재하지 않을 경우 로그인이 불가능하다.")

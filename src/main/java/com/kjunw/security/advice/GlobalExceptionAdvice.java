@@ -1,7 +1,6 @@
 package com.kjunw.security.advice;
 
 import com.kjunw.security.exception.BadRequestException;
-import com.kjunw.security.exception.LoginFailException;
 import com.kjunw.security.exception.NotFoundException;
 import com.kjunw.security.exception.UnauthorizedException;
 import java.util.List;
@@ -84,15 +83,6 @@ public class GlobalExceptionAdvice {
         return ResponseEntity.badRequest().body(problemDetail);
     }
 
-    @ExceptionHandler(LoginFailException.class)
-    public ResponseEntity<ProblemDetail> loginFailExceptionHandler(LoginFailException exception) {
-        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
-        problemDetail.setTitle("로그인에 실패했습니다.");
-        problemDetail.setDetail("로그인 정보를 다시 확인해주세요.");
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problemDetail);
-    }
-
-
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ProblemDetail> unauthorizedExceptionHandler(UnauthorizedException exception) {
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.UNAUTHORIZED);
@@ -103,6 +93,7 @@ public class GlobalExceptionAdvice {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ProblemDetail> runtimeExceptionHandler(RuntimeException exception) {
+        exception.printStackTrace();
         ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
         problemDetail.setTitle("서버 내부 에러입니다.");
         problemDetail.setDetail("서버 내부에서 로직 예외 발생했습니다.");

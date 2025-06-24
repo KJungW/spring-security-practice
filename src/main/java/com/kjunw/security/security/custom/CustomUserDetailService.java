@@ -1,8 +1,7 @@
-package com.kjunw.security.service.auth;
+package com.kjunw.security.security.custom;
 
 import com.kjunw.security.domain.Member;
 import com.kjunw.security.repository.MemberRepository;
-import com.kjunw.security.security.jwt.CustomUserDetails;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

@@ -1,10 +1,11 @@
-package com.kjunw.security.security;
+package com.kjunw.security.security.configuration;
 
 
-import com.kjunw.security.security.jwt.JwtAuthFilter;
-import com.kjunw.security.security.oauth2.OAuth2SuccessHandler;
-import com.kjunw.security.service.auth.CustomUserDetailService;
-import com.kjunw.security.service.oauth2.CustomOAuth2UserService;
+import com.kjunw.security.security.custom.CustomOAuth2UserService;
+import com.kjunw.security.security.custom.CustomUserDetailService;
+import com.kjunw.security.security.filter.AuthFailHandler;
+import com.kjunw.security.security.filter.AuthSuccessHandler;
+import com.kjunw.security.security.filter.JwtAuthFilter;
 import com.kjunw.security.utility.JwtProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,22 +27,26 @@ public class SecurityConfiguration {
     private final JwtProvider jwtProvider;
     private final CustomUserDetailService userDetailService;
     private final CustomOAuth2UserService oAuth2UserService;
-    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final AuthSuccessHandler authSuccessHandler;
+    private final AuthFailHandler authFailHandler;
 
     public SecurityConfiguration(
             JwtProvider jwtProvider,
             CustomUserDetailService userDetailService,
-            CustomOAuth2UserService oAuth2UserService, OAuth2SuccessHandler oAuth2SuccessHandler
+            CustomOAuth2UserService oAuth2UserService,
+            AuthSuccessHandler authSuccessHandler,
+            AuthFailHandler authFailHandler
     ) {
         this.jwtProvider = jwtProvider;
         this.userDetailService = userDetailService;
         this.oAuth2UserService = oAuth2UserService;
-        this.oAuth2SuccessHandler = oAuth2SuccessHandler;
+        this.authSuccessHandler = authSuccessHandler;
+        this.authFailHandler = authFailHandler;
     }
 
+    // # 스프링 시큐리티 필터체인을 스프링빈으로 등록
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http)
-            throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         // CSRF, CORS 세팅
         http.csrf(AbstractHttpConfigurer::disable);
@@ -61,10 +66,18 @@ public class SecurityConfiguration {
         http.formLogin(AbstractHttpConfigurer::disable);
         http.logout(AbstractHttpConfigurer::disable);
 
-        // 소셜 로그인 설정
+        // OAuth2 소셜 로그인 설정
+        // - 디폴트 성공처리인 defaultSuccessUrl 속성과 인증 성공 핸들러인 successHandler 속성을
+        //   같이 세팅하면 successHandler가 무시된다는점 알아두자.
         http.oauth2Login(oauth2 -> oauth2
+                // 보호된 자원 접근시 "GET /login"으로 이동시킴
+                .loginPage("/login")
+                // 유저정보를 처리하는 커스텀 서비스 설정
                 .userInfoEndpoint(userInfo -> userInfo.userService(oAuth2UserService))
-                .successHandler(oAuth2SuccessHandler) // 디폴트 성공처리인 defaultSuccessUrl와 같이 적용하면 무시된다는 점을 유의
+                // 인증 성공시 호출하는 성공 핸들러
+                .successHandler(authSuccessHandler)
+                // 인증 실패시 호출하는 실패 핸들러
+                .failureHandler(authFailHandler)
         );
 
         // JWT 인증 필터 추가

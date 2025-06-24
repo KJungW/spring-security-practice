@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>로그인 & 회원가입</title>
+  <meta charset="UTF-8">
+</head>
+<body>
+<h1>로그인 & 회원가입 페이지</h1>
+
+<!-- ✅ 소셜 로그인 링크 -->
+<h2>소셜 로그인</h2>
+<a href="/oauth2/authorization/naver">네이버 로그인</a><br>
+<a href="/oauth2/authorization/kakao">카카오 로그인</a><br>
+<a href="/oauth2/authorization/google">구글 로그인</a><br>
+
+<hr>
+
+<!-- ✅ ID/PW 로그인 폼 -->
+<h2>ID/PW 로그인</h2>
+<input type="text" id="login-username" placeholder="아이디"><br><br>
+<input type="password" id="login-password" placeholder="비밀번호"><br><br>
+<button onclick="login()">로그인</button>
+
+<hr>
+
+<!-- ✅ 회원가입 폼 -->
+<h2>회원가입</h2>
+<input type="text" id="signup-name" placeholder="이름"><br><br>
+<input type="email" id="signup-email" placeholder="이메일"><br><br>
+<input type="password" id="signup-password" placeholder="비밀번호"><br><br>
+<button onclick="signup()">회원가입</button>
+
+<script>
+  function login() {
+    const email = document.getElementById("login-username").value;
+    const password = document.getElementById("login-password").value;
+
+    fetch("/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    })
+    .then(res => {
+      if (res.ok) {
+        alert("로그인 성공, 페이지 이동합니다.");
+        window.location.href = "/login/success";
+      } else {
+        return res.text().then(text => { throw new Error(text); });
+      }
+    })
+    .catch(err => alert("로그인 실패: " + err.message));
+  }
+
+    function signup() {
+      const name = document.getElementById("signup-name").value;
+      const email = document.getElementById("signup-email").value;
+      const password = document.getElementById("signup-password").value;
+
+      fetch("/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password })
+      })
+      .then(res => {
+        if (res.ok) {
+          alert("회원가입 성공");
+        } else {
+          return res.text().then(text => { throw new Error(text); });
+        }
+      })
+      .catch(err => alert("회원가입 실패: " + err.message));
+    }
+</script>
+
+</body>
+</html>
