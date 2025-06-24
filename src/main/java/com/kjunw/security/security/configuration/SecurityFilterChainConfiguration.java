@@ -3,8 +3,10 @@ package com.kjunw.security.security.configuration;
 
 import com.kjunw.security.security.custom.CustomOAuth2UserService;
 import com.kjunw.security.security.custom.CustomUserDetailService;
+import com.kjunw.security.security.filter.AccessDeniedExceptionHandler;
 import com.kjunw.security.security.filter.AuthFailHandler;
 import com.kjunw.security.security.filter.AuthSuccessHandler;
+import com.kjunw.security.security.filter.AuthenticationEntryPointHandler;
 import com.kjunw.security.security.filter.JwtAuthFilter;
 import com.kjunw.security.utility.JwtProvider;
 import org.springframework.context.annotation.Bean;
@@ -22,26 +24,32 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity   // 메서드 단위 보안 설정 활성화 (ex. @PreAuthorized)
-public class SecurityConfiguration {
+public class SecurityFilterChainConfiguration {
 
     private final JwtProvider jwtProvider;
     private final CustomUserDetailService userDetailService;
     private final CustomOAuth2UserService oAuth2UserService;
     private final AuthSuccessHandler authSuccessHandler;
     private final AuthFailHandler authFailHandler;
+    private final AuthenticationEntryPointHandler authenticationEntryPointHandler;
+    private final AccessDeniedExceptionHandler accessDeniedExceptionHandler;
 
-    public SecurityConfiguration(
+    public SecurityFilterChainConfiguration(
             JwtProvider jwtProvider,
             CustomUserDetailService userDetailService,
             CustomOAuth2UserService oAuth2UserService,
             AuthSuccessHandler authSuccessHandler,
-            AuthFailHandler authFailHandler
+            AuthFailHandler authFailHandler,
+            AuthenticationEntryPointHandler authenticationEntryPointHandler,
+            AccessDeniedExceptionHandler accessDeniedExceptionHandler
     ) {
         this.jwtProvider = jwtProvider;
         this.userDetailService = userDetailService;
         this.oAuth2UserService = oAuth2UserService;
         this.authSuccessHandler = authSuccessHandler;
         this.authFailHandler = authFailHandler;
+        this.authenticationEntryPointHandler = authenticationEntryPointHandler;
+        this.accessDeniedExceptionHandler = accessDeniedExceptionHandler;
     }
 
     // # 스프링 시큐리티 필터체인을 스프링빈으로 등록
@@ -59,7 +67,8 @@ public class SecurityConfiguration {
 
         // 세션 사용X
         http.sessionManagement(sessionManagement
-                -> sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+                -> sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        );
 
         // BasicHttp, FormLogin, 기본 로그아웃 비활성화
         http.httpBasic(AbstractHttpConfigurer::disable);
@@ -67,8 +76,6 @@ public class SecurityConfiguration {
         http.logout(AbstractHttpConfigurer::disable);
 
         // OAuth2 소셜 로그인 설정
-        // - 디폴트 성공처리인 defaultSuccessUrl 속성과 인증 성공 핸들러인 successHandler 속성을
-        //   같이 세팅하면 successHandler가 무시된다는점 알아두자.
         http.oauth2Login(oauth2 -> oauth2
                 // 보호된 자원 접근시 "GET /login"으로 이동시킴
                 .loginPage("/login")
@@ -85,8 +92,25 @@ public class SecurityConfiguration {
                 new JwtAuthFilter(jwtProvider, userDetailService),
                 UsernamePasswordAuthenticationFilter.class);
 
-        // 모든 HTTP 요청 허용
-        http.authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll());
+        // 인증/인가 예외 핸들링
+        // - 여기서 핸들링하는 인증/인가 예외는 시큐리티의 필터체인에서 발생하는 인증/인가 예외들이다.
+        // - 메서드 단위의 인가(@PreAuthorize)에서 발생하는 인가 예외는 따로
+        //   ExceptionHandler로 처리해야한다는 점유의
+        http.exceptionHandling(exception -> exception
+                .authenticationEntryPoint(authenticationEntryPointHandler)
+                .accessDeniedHandler(accessDeniedExceptionHandler)
+        );
+
+        // URL 경로별 인증 여부 설정
+        http.authorizeHttpRequests(authorize -> authorize
+                .requestMatchers("/auth/reissue").permitAll()
+                .requestMatchers("/login").permitAll()
+                .requestMatchers("/logout").permitAll()
+                .requestMatchers("/login/success").permitAll()
+                .requestMatchers("/all").permitAll()
+                .requestMatchers("/signup").permitAll()
+                .anyRequest().authenticated()
+        );
 
         return http.build();
     }

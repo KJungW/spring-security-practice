@@ -17,4 +17,10 @@ public class RoleCheckController {
     public String canUseByOnlyGeneralRole() {
         return "/general : OK!";
     }
+
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    public String canUseByOnlyAdminRole() {
+        return "/admin : OK!";
+    }
 }

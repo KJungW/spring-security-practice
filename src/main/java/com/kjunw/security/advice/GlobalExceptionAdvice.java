@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestCookieException;
@@ -19,6 +21,12 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 
 @RestControllerAdvice
 public class GlobalExceptionAdvice {
+
+    private final AccessDeniedHandler accessDeniedHandler;
+
+    public GlobalExceptionAdvice(AccessDeniedHandler accessDeniedHandler) {
+        this.accessDeniedHandler = accessDeniedHandler;
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ProblemDetail> methodArgumentNotValidExceptionHandler(
@@ -89,6 +97,14 @@ public class GlobalExceptionAdvice {
         problemDetail.setTitle("인증을 먼저 진행해주세요.");
         problemDetail.setDetail(exception.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problemDetail);
+    }
+
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    public ResponseEntity<ProblemDetail> authorizationDeniedExceptionHandler(AuthorizationDeniedException exception) {
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.FORBIDDEN.value());
+        problemDetail.setTitle("접근 권한이 없습니다.");
+        problemDetail.setDetail("접근 권한을 가진 계정으로 요청해주세요.");
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problemDetail);
     }
 
     @ExceptionHandler(RuntimeException.class)

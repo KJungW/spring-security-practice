@@ -12,6 +12,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
+/*
+ * AuthenticationSuccessHandler
+ - 로그인 성공 처리를 수행하는 핸들러
+ */
+
 @Component
 public class AuthSuccessHandler implements AuthenticationSuccessHandler {
 

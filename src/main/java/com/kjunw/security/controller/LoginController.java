@@ -1,7 +1,6 @@
 package com.kjunw.security.controller;
 
 import com.kjunw.security.controller.request.LoginRequest;
-import com.kjunw.security.exception.NotFoundException;
 import com.kjunw.security.security.filter.AuthFailHandler;
 import com.kjunw.security.security.filter.AuthSuccessHandler;
 import com.kjunw.security.service.LoginService;
@@ -52,7 +51,7 @@ public class LoginController {
             Authentication authentication = loginService.login(loginRequest.email(), loginRequest.password());
             // 로그인 성공시 -> 로그인 성공 핸들러 실행
             authSuccessHandler.onAuthenticationSuccess(httpRequest, httpResponse, authentication);
-        } catch (NotFoundException exception) {
+        } catch (Exception exception) {
             // 로그인 실패시 -> 로그인 실패 핸들러 실행
             authFailHandler.onAuthenticationFailure(
                     httpRequest, httpResponse, new BadCredentialsException("로그인에 실패했습니다."));
