@@ -1,4 +1,4 @@
-package com.kjunw.security.controller.auth;
+package com.kjunw.security.controller;
 
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.restdocs.restassured.RestAssuredRestDocumentation.document;
@@ -8,10 +8,13 @@ import com.kjunw.security.domain.Account;
 import com.kjunw.security.domain.Member;
 import com.kjunw.security.domain.Role;
 import com.kjunw.security.dto.RefreshTokenContent;
+import com.kjunw.security.repository.AccountRepository;
 import com.kjunw.security.repository.MemberRepository;
 import com.kjunw.security.utility.JwtProvider;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,13 +31,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 @AutoConfigureRestDocs
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-class AuthApiTest {
+class LoginApiTest {
 
     @LocalServerPort
     private int port;
 
     @Autowired
     private MemberRepository memberRepository;
+    @Autowired
+    private AccountRepository accountRepository;
     @Autowired
     private JwtProvider jwtProvider;
     @Autowired
@@ -52,15 +57,94 @@ class AuthApiTest {
     void afterEach() {
         RestAssured.reset();
         memberRepository.deleteAll();
+        accountRepository.deleteAll();
     }
 
     @Nested
-    @DisplayName("토큰을 재발급 받을 수 있다.")
-    public class ReissueAccessToken {
+    @DisplayName("로그인 할 수 있다.")
+    public class Login {
 
-        @DisplayName("정상적으로 토큰을 재발급 받을 수 있다.")
+        @DisplayName("정상적으로 로그인 할 수 있다.")
         @Test
-        void canReissueAccessToken() {
+        void canLogin() {
+            // given
+            Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
+            member = memberRepository.save(member);
+
+            Map<String, Object> params = new HashMap<>();
+            params.put("email", "member@test.com");
+            params.put("password", "qwer1234!");
+
+            // when & then
+            RestAssured
+                    .given().log().all()
+                    .filter(document("login"))
+                    .contentType(ContentType.JSON)
+                    .port(port)
+                    .body(params)
+                    .when()
+                    .post("/login")
+                    .then().log().all()
+                    .statusCode(HttpStatus.FOUND.value())
+                    .cookie("refreshToken", notNullValue());
+        }
+
+        @DisplayName("계정이 존재하지 않을 경우 로그인이 불가능하다.")
+        @Test
+        void cannotByInvalidEmail() {
+            // given
+            Map<String, Object> params = new HashMap<>();
+            params.put("email", "member@test.com");
+            params.put("password", "qwer1234!");
+
+            // when & then
+            RestAssured
+                    .given().log().all()
+                    .filter(document("login/invalid_email"))
+                    .contentType(ContentType.JSON)
+                    .port(port)
+                    .body(params)
+                    .when()
+                    .post("/login")
+                    .then().log().all()
+                    .statusCode(HttpStatus.UNAUTHORIZED.value());
+
+        }
+
+        @DisplayName("비밀번호가 올바르지 않을 경우 로그인이 불가능하다.")
+        @Test
+        void cannotByIncorrectPassword() {
+            // given
+            Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
+            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
+            member = memberRepository.save(member);
+
+            Map<String, Object> params = new HashMap<>();
+            params.put("email", "member@test.com");
+            params.put("password", "asdf1234!");
+
+            // when & then
+            RestAssured
+                    .given().log().all()
+                    .filter(document("login/invalid_password"))
+                    .contentType(ContentType.JSON)
+                    .port(port)
+                    .body(params)
+                    .when()
+                    .post("/login")
+                    .then().log().all()
+                    .statusCode(HttpStatus.UNAUTHORIZED.value());
+        }
+    }
+
+    @Nested
+    @DisplayName("로그아웃 할 수 있다.")
+    public class Logout {
+
+        @DisplayName("정상적으로 로그아웃할 수 있다.")
+        @Test
+        void canLogout() {
             // given
             Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
             Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
@@ -73,97 +157,14 @@ class AuthApiTest {
             // when & then
             RestAssured
                     .given().log().all()
-                    .filter(document("reissue_access"))
+                    .filter(document("logout"))
                     .contentType(ContentType.JSON)
                     .port(port)
                     .cookie("refreshToken", refreshToken)
                     .when()
-                    .post("/auth/reissue")
+                    .post("/logout")
                     .then().log().all()
-                    .statusCode(HttpStatus.OK.value())
-                    .cookie("refreshToken", notNullValue())
-                    .body("accessToken", notNullValue());
-        }
-
-        @DisplayName("만료된 리프레쉬 토큰으로는 재발급이 불가능하다.")
-        @Test
-        void cannotByExpiredRefreshToken() {
-            // given
-            Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
-            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
-            member = memberRepository.save(member);
-
-            jwtProvider = new JwtProvider("qwekljksldcvmxzlewjrjqw[dsiv[afdaf'ewrw'resdf", 600000, 0);
-            String expiredRefreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
-            member.replaceRefreshToken(expiredRefreshToken);
-            member = memberRepository.save(member);
-
-            // when & then
-            RestAssured
-                    .given().log().all()
-                    .filter(document("reissue_access/expired_refresh"))
-                    .contentType(ContentType.JSON)
-                    .port(port)
-                    .cookie("refreshToken", expiredRefreshToken)
-                    .when()
-                    .post("/auth/reissue")
-                    .then().log().all()
-                    .statusCode(HttpStatus.UNAUTHORIZED.value());
-        }
-
-        @DisplayName("훼손된 리프레쉬 토큰으로는 재발급이 불가능하다.")
-        @Test
-        void cannotByDamagedRefreshToken() {
-            // given
-            Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
-            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
-            member = memberRepository.save(member);
-
-            String damagedRefreshToken =
-                    jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId())) + "damaged";
-            member.replaceRefreshToken(damagedRefreshToken);
-            member = memberRepository.save(member);
-
-            // when & then
-            RestAssured
-                    .given().log().all()
-                    .filter(document("reissue_access/damaged_refresh"))
-                    .contentType(ContentType.JSON)
-                    .port(port)
-                    .cookie("refreshToken", damagedRefreshToken)
-                    .when()
-                    .post("/auth/reissue")
-                    .then().log().all()
-                    .statusCode(HttpStatus.UNAUTHORIZED.value());
-        }
-
-        @DisplayName("입력된 리프레시 토큰이 서버의 리프레쉬 토큰과 일치하지 않는다면 재발급이 불가능하다.")
-        @Test
-        void cannotByInvalidRefreshToken() {
-            // given
-            Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
-            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
-            member = memberRepository.save(member);
-
-            jwtProvider = new JwtProvider("qwekljksldcvmxzlewjrjqw[dsiv[afdaf'ewrw'resdf", 600000, 600000);
-            String firstRefreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
-            member.replaceRefreshToken(firstRefreshToken);
-            member = memberRepository.save(member);
-
-            jwtProvider = new JwtProvider("qwekljksldcvmxzlewjrjqw[dsiv[afdaf'ewrw'resdf", 600000, 500000);
-            String secondRefreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
-
-            // when & then
-            RestAssured
-                    .given().log().all()
-                    .filter(document("reissue_access/invalid_refresh"))
-                    .contentType(ContentType.JSON)
-                    .port(port)
-                    .cookie("refreshToken", secondRefreshToken)
-                    .when()
-                    .post("/auth/reissue")
-                    .then().log().all()
-                    .statusCode(HttpStatus.UNAUTHORIZED.value());
+                    .statusCode(HttpStatus.NO_CONTENT.value());
         }
     }
 }

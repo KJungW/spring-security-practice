@@ -1,13 +1,13 @@
-package com.kjunw.security.controller.auth;
+package com.kjunw.security.controller;
 
-import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.restdocs.restassured.RestAssuredRestDocumentation.document;
 import static org.springframework.restdocs.restassured.RestAssuredRestDocumentation.documentationConfiguration;
 
 import com.kjunw.security.domain.Account;
 import com.kjunw.security.domain.Member;
 import com.kjunw.security.domain.Role;
-import com.kjunw.security.dto.RefreshTokenContent;
+import com.kjunw.security.dto.AccessTokenContent;
+import com.kjunw.security.repository.AccountRepository;
 import com.kjunw.security.repository.MemberRepository;
 import com.kjunw.security.utility.JwtProvider;
 import io.restassured.RestAssured;
@@ -28,13 +28,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 @AutoConfigureRestDocs
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-class AuthApiTest {
+class RoleCheckControllerTest {
 
     @LocalServerPort
     private int port;
 
     @Autowired
     private MemberRepository memberRepository;
+    @Autowired
+    private AccountRepository accountRepository;
     @Autowired
     private JwtProvider jwtProvider;
     @Autowired
@@ -52,118 +54,123 @@ class AuthApiTest {
     void afterEach() {
         RestAssured.reset();
         memberRepository.deleteAll();
+        accountRepository.deleteAll();
     }
 
     @Nested
-    @DisplayName("토큰을 재발급 받을 수 있다.")
-    public class ReissueAccessToken {
+    @DisplayName("모든 사용자가 접근 가능하다.")
+    public class RequestAll {
 
-        @DisplayName("정상적으로 토큰을 재발급 받을 수 있다.")
+        @DisplayName("정상적으로 모든 사용자가 접근 가능하다.")
         @Test
-        void canReissueAccessToken() {
+        void canRequestAll() {
+            // when & then
+            RestAssured
+                    .given().log().all()
+                    .filter(document("request_all"))
+                    .contentType(ContentType.JSON)
+                    .port(port)
+                    .when()
+                    .get("/all")
+                    .then().log().all()
+                    .statusCode(HttpStatus.OK.value());
+        }
+    }
+
+    @Nested
+    @DisplayName("일반 회원만 접근 가능하다.")
+    public class RequestGeneral {
+
+        @DisplayName("정상적으로 일반 회원만 접근 가능하다.")
+        @Test
+        void canRequestGeneral() {
             // given
             Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
             Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
             member = memberRepository.save(member);
 
-            String refreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
-            member.replaceRefreshToken(refreshToken);
-            member = memberRepository.save(member);
+            String accessToken = jwtProvider.createAccessToken(
+                    new AccessTokenContent(member.getId(), member.getRole(), member.getName()));
 
             // when & then
             RestAssured
                     .given().log().all()
-                    .filter(document("reissue_access"))
+                    .filter(document("request_general"))
+                    .header("Authorization", "Bearer " + accessToken)
                     .contentType(ContentType.JSON)
                     .port(port)
-                    .cookie("refreshToken", refreshToken)
                     .when()
-                    .post("/auth/reissue")
+                    .get("/general")
                     .then().log().all()
-                    .statusCode(HttpStatus.OK.value())
-                    .cookie("refreshToken", notNullValue())
-                    .body("accessToken", notNullValue());
+                    .statusCode(HttpStatus.OK.value());
         }
 
-        @DisplayName("만료된 리프레쉬 토큰으로는 재발급이 불가능하다.")
+        @DisplayName("인증되지 않은 사용자는 접근이 불가능하다.")
         @Test
-        void cannotByExpiredRefreshToken() {
-            // given
-            Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
-            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
-            member = memberRepository.save(member);
-
-            jwtProvider = new JwtProvider("qwekljksldcvmxzlewjrjqw[dsiv[afdaf'ewrw'resdf", 600000, 0);
-            String expiredRefreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
-            member.replaceRefreshToken(expiredRefreshToken);
-            member = memberRepository.save(member);
-
+        void cannotRequestNotAuthorization() {
             // when & then
             RestAssured
                     .given().log().all()
-                    .filter(document("reissue_access/expired_refresh"))
+                    .filter(document("request_general/not_authorization"))
                     .contentType(ContentType.JSON)
                     .port(port)
-                    .cookie("refreshToken", expiredRefreshToken)
                     .when()
-                    .post("/auth/reissue")
+                    .get("/general")
                     .then().log().all()
                     .statusCode(HttpStatus.UNAUTHORIZED.value());
         }
+    }
 
-        @DisplayName("훼손된 리프레쉬 토큰으로는 재발급이 불가능하다.")
+    @Nested
+    @DisplayName("관리자만 접근 가능하다.")
+    public class RequestAdmin {
+
+        @DisplayName("정상적으로 일반 회원만 접근 가능하다.")
         @Test
-        void cannotByDamagedRefreshToken() {
+        void canRequestAdmin() {
             // given
             Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
-            Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
+            Member member = new Member(Role.ADMIN, "Park", "member@test.com", account);
             member = memberRepository.save(member);
 
-            String damagedRefreshToken =
-                    jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId())) + "damaged";
-            member.replaceRefreshToken(damagedRefreshToken);
-            member = memberRepository.save(member);
+            String accessToken = jwtProvider.createAccessToken(
+                    new AccessTokenContent(member.getId(), member.getRole(), member.getName()));
 
             // when & then
             RestAssured
                     .given().log().all()
-                    .filter(document("reissue_access/damaged_refresh"))
+                    .filter(document("request_admin"))
+                    .header("Authorization", "Bearer " + accessToken)
                     .contentType(ContentType.JSON)
                     .port(port)
-                    .cookie("refreshToken", damagedRefreshToken)
                     .when()
-                    .post("/auth/reissue")
+                    .get("/admin")
                     .then().log().all()
-                    .statusCode(HttpStatus.UNAUTHORIZED.value());
+                    .statusCode(HttpStatus.OK.value());
         }
 
-        @DisplayName("입력된 리프레시 토큰이 서버의 리프레쉬 토큰과 일치하지 않는다면 재발급이 불가능하다.")
+        @DisplayName("인증은 되었지만 권한이 부족한 사용자는 접근이 불가능하다.")
         @Test
-        void cannotByInvalidRefreshToken() {
+        void cannotRequestWithInvalidAuthority() {
             // given
             Account account = Account.makeCommonLoginAccount(passwordEncoder.encode("qwer1234!"));
             Member member = new Member(Role.GENERAL, "Park", "member@test.com", account);
             member = memberRepository.save(member);
 
-            jwtProvider = new JwtProvider("qwekljksldcvmxzlewjrjqw[dsiv[afdaf'ewrw'resdf", 600000, 600000);
-            String firstRefreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
-            member.replaceRefreshToken(firstRefreshToken);
-            member = memberRepository.save(member);
-
-            jwtProvider = new JwtProvider("qwekljksldcvmxzlewjrjqw[dsiv[afdaf'ewrw'resdf", 600000, 500000);
-            String secondRefreshToken = jwtProvider.createRefreshToken(new RefreshTokenContent(member.getId()));
+            String accessToken = jwtProvider.createAccessToken(
+                    new AccessTokenContent(member.getId(), member.getRole(), member.getName()));
 
             // when & then
             RestAssured
                     .given().log().all()
-                    .filter(document("reissue_access/invalid_refresh"))
+                    .filter(document("request_admin/invalid_authority"))
+                    .header("Authorization", "Bearer " + accessToken)
                     .contentType(ContentType.JSON)
                     .port(port)
-                    .cookie("refreshToken", secondRefreshToken)
                     .when()
-                    .post("/auth/reissue")
+                    .get("/admin")
                     .then().log().all()
-                    .statusCode(HttpStatus.UNAUTHORIZED.value());
+                    .statusCode(HttpStatus.FORBIDDEN.value());
         }
     }
 }

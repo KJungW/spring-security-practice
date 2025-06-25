@@ -1,0 +1,62 @@
+= API 문서
+:toc: left
+:doctype: book
+
+== 회원가입
+
+=== 회원가입 (성공)
+include::{snippets}/signup/http-request.adoc[]
+
+=== 회원가입 (실패 - 중복 이메일)
+include::{snippets}/signup/duplicated_email/http-request.adoc[]
+
+== 로그인
+
+=== 로그인 (성공)
+include::{snippets}/login/http-request.adoc[]
+
+=== 로그인 (실패 - 계정 없음)
+include::{snippets}/login/invalid_email/duplicated_email/http-request.adoc[]
+
+=== 로그인 (실패 - 비밀 번호가 올바르지 않음)
+include::{snippets}/login/invalid_password/duplicated_email/http-request.adoc[]
+
+== 로그아웃
+
+=== 로그아웃 (성공)
+include::{snippets}/logout/http-request.adoc[]
+
+== 토큰 재발급
+
+=== 토큰 재발급 (성공)
+include::{snippets}/reissue_access/http-request.adoc[]
+
+=== 토큰 재발급 (실패 - 만료된 리프레쉬 토큰)
+include::{snippets}/reissue_access/expired_refresh/http-request.adoc[]
+
+=== 토큰 재발급 (실패 - 훼손된 리프레쉬 토큰)
+include::{snippets}/reissue_access/damaged_refresh/http-request.adoc[]
+
+=== 토큰 재발급 (실패 - 유효하지 않은 리프레쉬 토큰)
+include::{snippets}/reissue_access/invalid_refresh/http-request.adoc[]
+
+== 전체 사용자 요청
+
+=== 전체 사용자 요청 (성공)
+include::{snippets}/request_all/http-request.adoc[]
+
+== 일반 사용자 요청
+
+=== 일반 사용자 요청 (성공)
+include::{snippets}/request_general/http-request.adoc[]
+
+=== 일반 사용자 요청 - 미인증)
+include::{snippets}/request_general/not_authorization/http-request.adoc[]
+
+== 관리자 요청
+
+=== 관리자 요청 (성공)
+include::{snippets}/request_admin/http-request.adoc[]
+
+=== 관리자 요청 (실패 - 권한 부족)
+include::{snippets}/request_admin/invalid_authority/http-request.adoc[]
